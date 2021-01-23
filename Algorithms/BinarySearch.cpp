@@ -1,6 +1,3 @@
-## 二分查找
-
-```cpp
 #include <iostream>
 #include <vector>
 using namespace std;
@@ -51,4 +48,3 @@ int bs2(vector<int> &a, int x){
     }
     return a[l];
 }
-```
