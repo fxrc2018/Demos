@@ -1,7 +1,11 @@
+## 二分查找
+
+```cpp
 #include <iostream>
 #include <vector>
 using namespace std;
 
+// 判断一个数是否在递增数组中存在
 bool bs(vector<int> &a, int x){
     int l = 0;
     int r = a.size() - 1;
@@ -18,6 +22,7 @@ bool bs(vector<int> &a, int x){
     return false;
 }
 
+// 在单调递增数组中查找大于等于x的数中最小的一个
 int bs1(vector<int> &a, int x){
     int l = 0;
     int r = a.size() - 1;
@@ -32,6 +37,7 @@ int bs1(vector<int> &a, int x){
     return a[l];
 }
 
+// 在单调递增数组中查找小于等于x的数中最大的一个
 int bs2(vector<int> &a, int x){
     int l = 0;
     int r = a.size() - 1;
@@ -45,3 +51,4 @@ int bs2(vector<int> &a, int x){
     }
     return a[l];
 }
+```
