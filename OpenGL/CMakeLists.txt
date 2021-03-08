@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.10)
+project(Main)
+set(CMAKE_BUILD_TYPE "Debug")
+add_executable(Main main.cpp)
+target_include_directories(Main PUBLIC "${PROJECT_SOURCE_DIR}/include")
+target_link_directories(Main PUBLIC "${PROJECT_SOURCE_DIR}/lib")
+target_link_libraries(Main glfw3 glew32 Opengl32)
+install(TARGETS Main DESTINATION ${PROJECT_SOURCE_DIR})
