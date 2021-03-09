@@ -14,7 +14,9 @@ public:
     int nfaces;
     Model(const std::string &filename);
     std::vector<Vec3f> getFace(int i);
+    std::vector<Vec3f> getVt(int i);
     void loadDiffuseTexture(const std::string &filename);
+    RGBQUAD getVtColor(float x, float y);
     FIBITMAP *vtmap;
     
 private:

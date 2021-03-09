@@ -61,5 +61,6 @@ class Mat{
 // typedef Vec<float,2> Vec2f;
 typedef Vec<3, int> Vec3i;
 typedef Vec<3, float> Vec3f;
+typedef Vec<4, float> Vec4f;
 
 #endif

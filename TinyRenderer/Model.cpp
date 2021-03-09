@@ -35,6 +35,7 @@ Model::Model(const std::string &filename){
         }
     }
     in.close();
+    std::cout<<"vt"<<vts.size()<<std::endl;
     loadDiffuseTexture(filename);
 }
 
@@ -47,9 +48,29 @@ std::vector<Vec3f> Model::getFace(int i){
     return face;
 }
 
+std::vector<Vec3f> Model::getVt(int i){
+    std::vector<Vec3f> face;
+    for(int j=0;j<3;j++){
+        Vec3f vf = vts[faces[i][j][1] - 1];
+        face.push_back(vf);
+    }
+    return face;
+}
+
 void Model::loadDiffuseTexture(const std::string &filename){
     std::string fn = filename.substr(0,filename.size()-4);
     fn.append("_diffuse.png");
     std::cout<<fn<<std::endl;
     vtmap = FreeImage_Load(FIF_PNG,fn.c_str());
+}
+
+RGBQUAD Model::getVtColor(float x, float y){
+    RGBQUAD color; 
+    // int w = FreeImage_GetWidth(vtmap);
+    // int h = FreeImage_GetHeight(vtmap);
+    x = x * FreeImage_GetWidth(vtmap);
+    y = y * FreeImage_GetHeight(vtmap);
+    FreeImage_GetPixelColor(vtmap,(unsigned int)x,(unsigned int)y,&color);
+    color.rgbReserved = 255;
+    return color;
 }

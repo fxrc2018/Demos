@@ -6,10 +6,23 @@
 #include "Model.h"
 #include "geometry.h"
 #include "FreeImage.h"
+#include "ourgl.h"
 using namespace std;
 
 const int WIDTH = 800;
 const int HEIGHT = 800 ;
+
+//用于保存渲染中的一些状态
+struct Shader : IShader{
+
+    const Model &model;
+
+    Shader(const Model &model):model(model){} 
+
+    virtual Vec4f vertex(const int iface, const int nthvert){
+        
+    }
+};
 
 FIBITMAP *screen = NULL;
 float ZBuffer[WIDTH][HEIGHT]; //只是记录，只要一一对应即可
@@ -18,6 +31,8 @@ RGBQUAD COLOR_WHITE = {255,255,255,255};
 RGBQUAD COLOR_RED = {0,0,255,255};
 
 vector<Vec3f> drawPts;
+
+    Model model("obj/african_head.obj");
 
 void init(){
     screen = FreeImage_Allocate(WIDTH, HEIGHT, 32);
@@ -29,7 +44,7 @@ void init(){
     }
     for(int i=0;i<WIDTH;i++){
         for(int j=0;j<HEIGHT;j++){
-            ZBuffer[i][j] = FLT_MAX;
+            ZBuffer[i][j] = -FLT_MAX;
         }
     }
 }
@@ -63,10 +78,6 @@ void drawLine(float x1, float y1, float x2, float y2, RGBQUAD color){
         swap(x2,y2);
         steep = true;
     }
-    // if(x1 > WIDTH || x2 > WIDTH || y1 > WIDTH || y2 > WIDTH){
-    //     printf("error");
-    //     return ;
-    // }
     if(x1 > x2){
         swap(x1,x2);
         swap(y1,y2);
@@ -97,12 +108,17 @@ void drawTriangle(const vector<Vec3f> &pts, RGBQUAD color = COLOR_RED){
     for(int x = left;x<=right;x++){
         for(int y=down;y<=up;y++){
             Vec3f bc = barycentric(pts,Vec3f(x,y,0));
-            if(bc.x < 0 || bc.y < 0 || bc.z < 0 || ZBuffer[x][y] < bc.z){
+            float d = bc.x * pts[0].z + bc.y * pts[1].z + bc.z * pts[2].z;
+            if(bc.x < 0 || bc.y < 0 || bc.z < 0 || ZBuffer[x][y] > d){
                 continue;
             }
-            ZBuffer[x][y] = bc.z;
+            ZBuffer[x][y] = d;
             // 决定这一点的颜色
-            
+            float tx = bc.x * drawPts[0].x + bc.y * drawPts[1].x + bc.z * drawPts[2].x; 
+            float ty = bc.x * drawPts[0].y + bc.y * drawPts[1].y + bc.z * drawPts[2].y;
+            color = model.getVtColor(tx,ty);
+            // color = model.getVtColor(drawPts[0].x,drawPts[0].y);
+            // color = model.getVtColor(x,y);
             drawPoint(x,y,color);
         }
     }
@@ -132,26 +148,23 @@ int main(int argc, char const *argv[])
     // drawTriangle(p2);
     // drawTriangle(p3);
 
-    Model model("obj/african_head.obj");
+
     for(int i=0;i<model.nfaces;i++){
         auto pts = model.getFace(i);
-        drawPts = pts;
-        // cout<<i<<endl;
+        drawPts = model.getVt(i);
         for(int j=0;j<3;j++){
             pts[j].x = (pts[j].x + 1) *   WIDTH / 2;
             pts[j].y = (pts[j].y + 1) * WIDTH / 2;
-            // drawLine(pts[i].x,pts[i].y,pts[(i+1)%3].x,pts[(i+1)%3].y,COLOR_WHITE);
         }
-       
-        // for(int j=0;j<3;j++){
-        //     pts[j].x = (pts[j].x + 1) *   WIDTH / 2;
-        //     pts[j].y = (pts[j].y + 1) * WIDTH / 2;
-        //     drawLine(pts[j].x,pts[j].y,pts[(j+1)%3].x,pts[(j+1)%3].y,COLOR_WHITE);
-        // }
         drawTriangle(pts,RGBQUAD{rand()%255,rand()%255,rand()%255,255});
     }
 
-
+    //测试图像是否正常
+    // for(int i=0;i<WIDTH;i++){
+    //     for(int j=0;j<HEIGHT;j++){
+    //         drawPoint(i,j,model.getVtColor(i,j));
+    //     }
+    // }
 
     FreeImage_Save(FIF_PNG,screen,"test.png");
     system("Start test.png"); //打开图像
