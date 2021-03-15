@@ -9,44 +9,91 @@
 #include "ourgl.h"
 using namespace std;
 
-const int WIDTH = 800;
-const int HEIGHT = 800 ;
-
 //用于保存渲染中的一些状态
-struct Shader : IShader{
+// struct Shader : IShader{
+//     const Model &model;
 
-    const Model &model;
+//     Shader(const Model &model):model(model){} 
 
-    Shader(const Model &model):model(model){} 
+//     virtual Vec4f vertex(const int iface, const int nthvert){
+//         return Vec4f();
+//     }
+// };
 
-    virtual Vec4f vertex(const int iface, const int nthvert){
-        
+Mat4f rotateY(float angle){
+    float theta = 3.1415926f / 180.0f * angle;
+    Mat4f ret = Mat4f::identity();
+    ret[0][0] = cos(theta);
+    ret[0][2] = sin(theta);
+    ret[2][0] = -sin(theta);
+    ret[2][2] = cos(theta);   
+    return ret;
+}
+
+const int WIDTH = 800;
+const int HEIGHT = 800;
+
+const RGBQUAD COLOR_WHITE = {255,255,255,255};
+const RGBQUAD COLOR_RED = {0,0,255,255};
+
+//渲染上下文
+struct RendererContext{
+    vector<vector<float>> zBuffer;
+    vector<Vec3f> pts; //原坐标
+    Mat<4,4,float> vm; //
+    
+    vector<Vec3f> scPts; //屏幕坐标
+    vector<Vec3f> orgPts;
+    vector<Vec3f> txPts; //tx
+    vector<Vec3f> vnPts; //tx
+    Model *model;
+    FIBITMAP *tx;
+    int faceIdx;
+    FIBITMAP *target;
+    RGBQUAD pixelColor;
+
+    void vertex(){
+
+    }
+
+    vector<Vec3f> getOriginPoints(){
+        return model->getFace(faceIdx);
+    }
+
+    vector<Vec3f> getTexturePoints(){
+        return model->getVt(faceIdx);
+    }
+
+    vector<Vec3f> getScreenPoints(){
+        vector<Vec3f> pts = model->getFace(faceIdx);
+        for(int j=0;j<3;j++){
+            pts[j] = proj<3,4,float>( rotateY(45.0f) * embed<4,3,float>(pts[j],1) ); 
+            pts[j].x = (pts[j].x + 1) *   WIDTH / 2;
+            pts[j].y = (pts[j].y + 1) * WIDTH / 2;
+        }
+        return pts;
     }
 };
 
-FIBITMAP *screen = NULL;
-float ZBuffer[WIDTH][HEIGHT]; //只是记录，只要一一对应即可
+RendererContext context;
 
-RGBQUAD COLOR_WHITE = {255,255,255,255};
-RGBQUAD COLOR_RED = {0,0,255,255};
+void vertex(RendererContext &context){
 
-vector<Vec3f> drawPts;
+}
 
-    Model model("obj/african_head.obj");
+void frag(RendererContext &context){
+
+}
 
 void init(){
-    screen = FreeImage_Allocate(WIDTH, HEIGHT, 32);
+    context.target = FreeImage_Allocate(WIDTH, HEIGHT, 32);
     for(int i=0;i<WIDTH;i++){
         for(int j=0;j<HEIGHT;j++){
             RGBQUAD color = {0,0,0,255};
-            FreeImage_SetPixelColor(screen,i,j,&color);
+            FreeImage_SetPixelColor(context.target,i,j,&color);
         }
     }
-    for(int i=0;i<WIDTH;i++){
-        for(int j=0;j<HEIGHT;j++){
-            ZBuffer[i][j] = -FLT_MAX;
-        }
-    }
+    context.zBuffer = vector<vector<float>>(WIDTH,vector<float>(HEIGHT,-FLT_MAX));
 }
 
 Vec3f barycentric(const vector<Vec3f> &pts, const Vec3f &p){
@@ -63,15 +110,15 @@ Vec3f barycentric(const vector<Vec3f> &pts, const Vec3f &p){
 }
 
 
-void drawPoint(float x, float y, RGBQUAD color){
+void drawPoint(float x, float y, RendererContext &context){
     int x1 = floor(x);
     int y1 = floor(y);
     if(x1 >= 0 && x1 < WIDTH && y1 >= 0 && y1 < HEIGHT){
-        FreeImage_SetPixelColor(screen,x1,y1,&color);
+        FreeImage_SetPixelColor(context.target,x1,y1,&context.pixelColor);
     }
 }
 
-void drawLine(float x1, float y1, float x2, float y2, RGBQUAD color){
+void drawLine(float x1, float y1, float x2, float y2, RendererContext &context){
     bool steep = false;
     if(fabs(x2 - x1) < fabs(y2 - y1)){
         swap(x1,y1);
@@ -86,14 +133,16 @@ void drawLine(float x1, float y1, float x2, float y2, RGBQUAD color){
         float t = (x - x1) / (x2 - x1);
         float y = y1 + (y2 - y1) * t;
         if(steep){
-            drawPoint(y,x,color);
+            drawPoint(y,x,context);
         }else{
-            drawPoint(x,y,color);
+            drawPoint(x,y,context);
         }
     }
 }
 
-void drawTriangle(const vector<Vec3f> &pts, RGBQUAD color = COLOR_RED){
+void drawTriangle(RendererContext &context){
+    vector<Vec3f> pts = context.getScreenPoints();
+    vector<Vec3f> drawPts = context.getTexturePoints();
     float left = pts[0].x, right = pts[0].x, up = pts[0].y, down = pts[0].y;
     for(int i=1;i<3;i++){
         left = min(left,pts[i].x);
@@ -109,64 +158,51 @@ void drawTriangle(const vector<Vec3f> &pts, RGBQUAD color = COLOR_RED){
         for(int y=down;y<=up;y++){
             Vec3f bc = barycentric(pts,Vec3f(x,y,0));
             float d = bc.x * pts[0].z + bc.y * pts[1].z + bc.z * pts[2].z;
-            if(bc.x < 0 || bc.y < 0 || bc.z < 0 || ZBuffer[x][y] > d){
+            if(bc.x < 0 || bc.y < 0 || bc.z < 0 || context.zBuffer[x][y] > d){
                 continue;
             }
-            ZBuffer[x][y] = d;
+            context.zBuffer[x][y] = d;
             // 决定这一点的颜色
             float tx = bc.x * drawPts[0].x + bc.y * drawPts[1].x + bc.z * drawPts[2].x; 
             float ty = bc.x * drawPts[0].y + bc.y * drawPts[1].y + bc.z * drawPts[2].y;
-            color = model.getVtColor(tx,ty);
+            RGBQUAD color = context.model->getVtColor(tx, ty);
+            context.pixelColor = color;
+            // color = model.getVtColor(tx,ty);
             // color = model.getVtColor(drawPts[0].x,drawPts[0].y);
             // color = model.getVtColor(x,y);
-            drawPoint(x,y,color);
+            drawPoint(x,y,context);
         }
     }
 }
 
-void drawModel(){
+void drawModel(string filename){
+    context.model = new Model(filename);
+    
+    for(int i=0;i<context.model->nfaces;i++){
+        // vector<Vec3f> pts = context.model->getFace(i);
+        // context.orgPts = pts;
+        // context.orgPts = context.model->getVt(i);
+        // for(int j=0;j<3;j++){
+        //     pts[j].x = (pts[j].x + 1) *   WIDTH / 2;
+        //     pts[j].y = (pts[j].y + 1) * WIDTH / 2;
+        // }
+        // context.scPts = pts;
 
+        // context.pixelColor = RGBQUAD{rand()%255,rand()%255,rand()%255,255};
+        context.faceIdx = i;
+        drawTriangle(context);
+
+        // drawTriangle(pts,RGBQUAD{rand()%255,rand()%255,rand()%255,255});
+    }
 }
 
 int main(int argc, char const *argv[])
 {
 
+
     init();
-    // drawLine(13, 20, 80, 40, COLOR_WHITE); 
-    // drawLine(20, 13, 40, 80, COLOR_RED); 
-    // drawLine(80, 40, 13, 20, COLOR_RED);
-
-    vector<Vec3f> p1= {{10,70,0},{50,160,0},{70,80,0}};
-    vector<Vec3f> p2= {{180,50,0},{150,1,0},{70,180,0}};
-    vector<Vec3f> p3= {{180,150,0},{120,160,0},{130,180,0}};
-
-//     Vec2i t0[3] = {Vec2i(10, 70),   Vec2i(50, 160),  Vec2i(70, 80)}; 
-// Vec2i t1[3] = {Vec2i(180, 50),  Vec2i(150, 1),   Vec2i(70, 180)}; 
-// Vec2i t2[3] = {Vec2i(180, 150), Vec2i(120, 160), Vec2i(130, 180)}; 
-
-    // drawTriangle(p1);
-    // drawTriangle(p2);
-    // drawTriangle(p3);
-
-
-    for(int i=0;i<model.nfaces;i++){
-        auto pts = model.getFace(i);
-        drawPts = model.getVt(i);
-        for(int j=0;j<3;j++){
-            pts[j].x = (pts[j].x + 1) *   WIDTH / 2;
-            pts[j].y = (pts[j].y + 1) * WIDTH / 2;
-        }
-        drawTriangle(pts,RGBQUAD{rand()%255,rand()%255,rand()%255,255});
-    }
-
-    //测试图像是否正常
-    // for(int i=0;i<WIDTH;i++){
-    //     for(int j=0;j<HEIGHT;j++){
-    //         drawPoint(i,j,model.getVtColor(i,j));
-    //     }
-    // }
-
-    FreeImage_Save(FIF_PNG,screen,"test.png");
+    drawModel("obj/african_head.obj");
+    FreeImage_Save(FIF_PNG,context.target,"test.png");
     system("Start test.png"); //打开图像
     system("pause");
     return 0;
