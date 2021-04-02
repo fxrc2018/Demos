@@ -29,6 +29,9 @@ Model::Model(const std::string &filename){
                 tmp.push_back(vi);
             }
             faces.push_back(tmp);
+        }else if(op == "vn"){
+            iss>>vf[0]>>vf[1]>>vf[2];
+            vns.push_back(vf);
         }else if(op == "vt"){
             iss>>vf[0]>>vf[1]>>vf[2];
             vts.push_back(vf);
@@ -57,6 +60,15 @@ std::vector<Vec3f> Model::getVt(int i){
     return face;
 }
 
+std::vector<Vec3f> Model::getVn(int i){
+    std::vector<Vec3f> face;
+    for(int j=0;j<3;j++){
+        Vec3f vf = vns[faces[i][j][2] - 1];
+        face.push_back(vf);
+    }
+    return face;
+}
+
 void Model::loadDiffuseTexture(const std::string &filename){
     std::string fn = filename.substr(0,filename.size()-4);
     fn.append("_diffuse.png");
@@ -74,3 +86,5 @@ RGBQUAD Model::getVtColor(float x, float y){
     color.rgbReserved = 255;
     return color;
 }
+
+

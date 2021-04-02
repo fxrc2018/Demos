@@ -15,6 +15,7 @@ public:
     Model(const std::string &filename);
     std::vector<Vec3f> getFace(int i);
     std::vector<Vec3f> getVt(int i);
+    std::vector<Vec3f> getVn(int i);
     void loadDiffuseTexture(const std::string &filename);
     RGBQUAD getVtColor(float x, float y);
     FIBITMAP *vtmap;
@@ -22,6 +23,7 @@ public:
 private:
     std::vector<Vec3f> verts;
     std::vector<Vec3f> vts;
+    std::vector<Vec3f> vns;
     std::vector<std::vector<Vec3i>> faces;
 };
 

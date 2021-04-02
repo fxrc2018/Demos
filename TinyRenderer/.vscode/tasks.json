@@ -8,6 +8,7 @@
                 "-g",
                 "main.cpp",
                 "Model.cpp",
+                "geometry.cpp",
                 "FreeImage.lib",
                 "-o",
                 "${workspaceFolder}\\main.exe"

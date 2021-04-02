@@ -44,6 +44,15 @@ struct Vec<3,T>{
             return z;
         }
     }
+
+    float norm() { 
+        return std::sqrt(x*x+y*y+z*z); 
+    }
+
+    Vec<3,T> & normalize(T l=1) { 
+        *this = (*this)*(l/norm()); 
+        return *this; 
+    }
 };
 
 //对向量进行扩充
@@ -132,7 +141,7 @@ public:
     }
 
     //得到一列
-    const Vec<DimRows, T> col(const int idx){
+    Vec<DimRows, T> col(const int idx) const{
         assert(idx < DimCols);
         Vec<DimRows,T> ret;
         for(int i=0;i<DimCols;i++){
@@ -197,6 +206,9 @@ typedef Vec<3, float> Vec3f;
 typedef Vec<4, float> Vec4f;
 typedef Mat<4,4,float> Mat4f;
 
-
+Mat4f rotateY(float angle);
+Mat4f lookat(Vec3f eye, Vec3f center, Vec3f up);
+Mat4f projection(float coeff);
+Mat4f viewport(int x, int y, int w, int h);
 
 #endif

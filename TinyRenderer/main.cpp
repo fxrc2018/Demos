@@ -20,15 +20,9 @@ using namespace std;
 //     }
 // };
 
-Mat4f rotateY(float angle){
-    float theta = 3.1415926f / 180.0f * angle;
-    Mat4f ret = Mat4f::identity();
-    ret[0][0] = cos(theta);
-    ret[0][2] = sin(theta);
-    ret[2][0] = -sin(theta);
-    ret[2][2] = cos(theta);   
-    return ret;
-}
+Vec3f       eye(0,1,3);
+Vec3f    center(0,0,0);
+Vec3f        up(0,1,0);
 
 const int WIDTH = 800;
 const int HEIGHT = 800;
@@ -49,8 +43,16 @@ struct RendererContext{
     Model *model;
     FIBITMAP *tx;
     int faceIdx;
+    int vertexIdx;
     FIBITMAP *target;
     RGBQUAD pixelColor;
+    Vec4f color;
+    Mat4f viewMat;
+    Mat4f projMat;
+    Mat4f viewport;
+
+    Vec3f light;
+    Vec3f bc;
 
     void vertex(){
 
@@ -64,15 +66,23 @@ struct RendererContext{
         return model->getVt(faceIdx);
     }
 
+    vector<Vec3f> getNorms(){
+        return model->getVn(faceIdx);
+    }
+
     vector<Vec3f> getScreenPoints(){
         vector<Vec3f> pts = model->getFace(faceIdx);
         for(int j=0;j<3;j++){
-            pts[j] = proj<3,4,float>( rotateY(45.0f) * embed<4,3,float>(pts[j],1) ); 
+            // pts[j] = proj<3,4,float>( rotateY(-45.0f) * embed<4,3,float>(pts[j],1) ); 
+            pts[j] = proj<3,4,float>( projMat * viewMat * embed<4,3,float>(pts[j],1) ); 
+            
             pts[j].x = (pts[j].x + 1) *   WIDTH / 2;
             pts[j].y = (pts[j].y + 1) * WIDTH / 2;
         }
         return pts;
     }
+
+
 };
 
 RendererContext context;
@@ -94,6 +104,10 @@ void init(){
         }
     }
     context.zBuffer = vector<vector<float>>(WIDTH,vector<float>(HEIGHT,-FLT_MAX));
+    context.light = Vec3f(1.0f,1.0f,1.0f).normalize();
+    context.viewMat = lookat(eye,center,up);
+    context.projMat = projection(-1.f/(eye-center).norm());
+    context.viewport = viewport(WIDTH/8, HEIGHT/8, WIDTH*3/4, HEIGHT*3/4);
 }
 
 Vec3f barycentric(const vector<Vec3f> &pts, const Vec3f &p){
@@ -114,6 +128,7 @@ void drawPoint(float x, float y, RendererContext &context){
     int x1 = floor(x);
     int y1 = floor(y);
     if(x1 >= 0 && x1 < WIDTH && y1 >= 0 && y1 < HEIGHT){
+
         FreeImage_SetPixelColor(context.target,x1,y1,&context.pixelColor);
     }
 }
@@ -142,6 +157,7 @@ void drawLine(float x1, float y1, float x2, float y2, RendererContext &context){
 
 void drawTriangle(RendererContext &context){
     vector<Vec3f> pts = context.getScreenPoints();
+    vector<Vec3f> po = context.getOriginPoints();
     vector<Vec3f> drawPts = context.getTexturePoints();
     float left = pts[0].x, right = pts[0].x, up = pts[0].y, down = pts[0].y;
     for(int i=1;i<3;i++){
@@ -166,6 +182,21 @@ void drawTriangle(RendererContext &context){
             float tx = bc.x * drawPts[0].x + bc.y * drawPts[1].x + bc.z * drawPts[2].x; 
             float ty = bc.x * drawPts[0].y + bc.y * drawPts[1].y + bc.z * drawPts[2].y;
             RGBQUAD color = context.model->getVtColor(tx, ty);
+            Vec3f n;
+            vector<Vec3f> vns = context.getNorms();
+            for(int i=0;i<3;i++){
+                n = n + vns[i] * bc[i];
+            }
+            n.normalize();
+            float intensity = max(0.0f,context.light * n);
+
+            if(intensity <= 0){
+                continue;
+            }
+            // cout<<intensity<<endl;
+            color.rgbRed = (int)color.rgbRed * intensity;
+            color.rgbBlue = (int)color.rgbBlue * intensity;
+            color.rgbGreen = (int)color.rgbGreen * intensity;
             context.pixelColor = color;
             // color = model.getVtColor(tx,ty);
             // color = model.getVtColor(drawPts[0].x,drawPts[0].y);
